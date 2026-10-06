@@ -112,19 +112,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--fyp); outli
 .hlabel { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
 .hval { font-size: 0.8rem; font-weight: 600; }
 
-.account { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-.account h2 { font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
-.account p { margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }
-.account form { display: grid; gap: 8px; }
-.account input { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; padding: 0 12px; }
-.account .row { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; padding: 0 16px; }
-.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); flex: 1; }
-.account .msg { min-height: 1.2em; margin: 8px 0 0; font-size: 0.9rem; }
-.account .msg.err { color: var(--crypto); }
-.signed { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.signed p { margin: 0; }
-.account[hidden] { display: none; }
+/* Timer */
+.c-right { display: flex; align-items: center; gap: 10px; }
+.play {
+  width: 40px; height: 40px; border-radius: 50%; border: 0; flex: none;
+  background: var(--c); color: #fff; display: grid; place-items: center;
+}
+.play svg { width: 16px; height: 16px; fill: currentColor; }
+.course[data-id="os2"] .play, .course[data-id="hci"] .play { color: #18202C; }
+.course.active { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); }
+.course.active .play { opacity: .35; cursor: default; }
+.timer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 24px rgba(24, 32, 44, .12);
+}
+.timer[hidden] { display: none; }
+.timer-in { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+.t-course { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.t-dot { width: 12px; height: 12px; border-radius: 3px; background: var(--c); flex: none; }
+.t-time { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.t-state { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.t-state.paused { color: #B26A00; font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .t-state.paused { color: var(--hci); } }
+.t-btns { grid-row: 1 / span 3; grid-column: 2; display: grid; gap: 6px; }
+.t-btns .btn { height: 42px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; padding: 0 16px; min-width: 120px; }
+.t-btns .btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.t-btns .link { border: 0; background: none; color: var(--muted); font-size: 0.85rem; padding: 4px; }
+body.timing main { padding-bottom: 210px; }
 .sync { margin-top: 24px; color: var(--muted); font-size: 0.8rem; text-align: center; }
 
 @media (max-width: 420px) {
@@ -163,36 +179,23 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--fyp); outli
     <div class="hist-wrap"><div class="hist" id="hist"></div></div>
   </section>
 
-  <section class="account" id="account" hidden>
-    <div id="signedOut">
-      <h2>Sync across devices</h2>
-      <p>Sign in to keep your hours on your phone and laptop.</p>
-      <form id="authForm">
-        <input type="email" id="email" placeholder="Email" autocomplete="email" required>
-        <input type="password" id="password" placeholder="Password (6+ characters)" autocomplete="current-password" minlength="6" required>
-        <div class="row">
-          <button class="btn primary" type="submit" id="signInBtn">Sign in</button>
-          <button class="btn" type="button" id="signUpBtn">Create account</button>
-        </div>
-      </form>
-      <p class="msg" id="authMsg" role="status"></p>
-    </div>
-    <div class="signed" id="signedIn" hidden>
-      <p>Syncing as <strong id="who"></strong></p>
-      <button class="btn" id="signOutBtn">Sign out</button>
-    </div>
-  </section>
-
   <p class="sync" id="sync">Saved on this device</p>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script>
-// ===== Fill these in from Supabase: Project Settings > API =====
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
-// ===============================================================
+<section class="timer" id="timer" hidden aria-label="Study timer">
+  <div class="timer-in">
+    <div class="t-course"><span class="t-dot" id="tDot"></span><span id="tCourse"></span></div>
+    <div class="t-time" id="tTime" role="timer">0:00:00</div>
+    <div class="t-state" id="tState"></div>
+    <div class="t-btns">
+      <button class="btn" id="tPause">Pause</button>
+      <button class="btn primary" id="tStop">Stop and save</button>
+      <button class="link" id="tDiscard">Discard</button>
+    </div>
+  </div>
+</section>
 
+<script>
 const COURSES = [
   { id: "os2",    name: "Operating Systems II",      code: "CS4421", target: 6, color: "var(--os)" },
   { id: "arch",   name: "Computer Architecture II",  code: "CS4420", target: 6, color: "var(--arch)" },
@@ -229,11 +232,19 @@ let weeks = {};          // { "2026-10-05": { os2: 2, ... } }
 const thisMonday = mondayOf(new Date());
 let current = thisMonday;
 
-try { const raw = localStorage.getItem(LS_KEY); if (raw) weeks = JSON.parse(raw).weeks || {}; } catch (e) {}
+let timer = null;        // { course, week, elapsed, runningSince, pausedSince, breakMs }
+try {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) { const d = JSON.parse(raw); weeks = d.weeks || {}; timer = d.timer || null; }
+} catch (e) {}
 
 function hoursFor(wk, id) { return (weeks[wk] && +weeks[wk][id]) || 0; }
 function weekTotal(wk) { return COURSES.reduce((s, c) => s + hoursFor(wk, c.id), 0); }
 const nice = n => (Math.round(n * 10) / 10).toString();
+function hm(hours) {
+  const mins = Math.round(hours * 60), h = Math.floor(mins / 60), m = mins % 60;
+  return h && m ? `${h} h ${m} min` : h ? `${h} h` : `${m} min`;
+}
 
 // ---------- render ----------
 const $ = id => document.getElementById(id);
@@ -243,7 +254,10 @@ function buildCourses() {
     <article class="course" style="--c:${c.color}" data-id="${c.id}">
       <div class="c-top">
         <div class="c-name">${c.name}<span class="c-code">${c.code}</span></div>
-        <div class="c-hours"><span data-h></span><small> / ${c.target} h</small></div>
+        <div class="c-right">
+          <div class="c-hours"><span data-h></span><small> / ${c.target} h</small></div>
+          <button class="play" data-play aria-label="Start timer for ${c.name}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+        </div>
       </div>
       <div class="bar"><span data-bar></span></div>
       <div class="c-bottom">
@@ -267,7 +281,7 @@ function render() {
   const total = weekTotal(wk);
   $("totalNum").innerHTML = `${nice(total)}<small> / ${GOAL} h</small>`;
   const left = GOAL - total;
-  $("totalNote").textContent = left > 0 ? `${nice(left)} h to go` : "Weekly goal reached";
+  $("totalNote").textContent = left > 0.001 ? `${hm(left)} to go` : "Weekly goal reached";
   $("stack").innerHTML = COURSES.map(c => {
     const h = Math.min(hoursFor(wk, c.id), c.target);
     return `<span style="width:${(h / GOAL) * 100}%;background:${c.color}"></span>`;
@@ -279,9 +293,13 @@ function render() {
     el.querySelector("[data-h]").textContent = nice(h);
     el.querySelector("[data-bar]").style.width = Math.min(100, (h / c.target) * 100) + "%";
     const st = el.querySelector("[data-status]");
-    const rem = c.target - h;
-    st.textContent = rem > 0 ? `${nice(rem)} h left` : rem === 0 ? "Done" : `Done +${nice(-rem)} h`;
-    st.classList.toggle("done", rem <= 0);
+    const rem = Math.round((c.target - h) * 60) / 60;
+    const studying = timer && timer.course === c.id;
+    st.textContent = studying ? (timer.runningSince ? "Studying now" : "On a break") :
+      rem > 0 ? `${hm(rem)} left` : rem === 0 ? "Done" : `Done +${hm(-rem)}`;
+    st.classList.toggle("done", !studying && rem <= 0);
+    el.classList.toggle("active", !!studying);
+    el.querySelector("[data-play]").disabled = !!studying;
     const inp = el.querySelector("[data-input]");
     if (document.activeElement !== inp) inp.value = h ? nice(h) : "";
     inp.placeholder = "0";
@@ -311,14 +329,13 @@ function renderHistory() {
 }
 
 // ---------- editing ----------
-function setHours(id, value) {
-  const wk = key(current);
-  const v = Math.max(0, Math.min(99, Math.round((+value || 0) * 2) / 2));
+function setHours(id, value, wk = key(current)) {
+  const v = Math.max(0, Math.min(99, Math.round((+value || 0) * 60) / 60));
   weeks[wk] = { ...(weeks[wk] || {}), [id]: v };
   if (!v) delete weeks[wk][id];
   if (weeks[wk] && !Object.keys(weeks[wk]).length) delete weeks[wk];
   render();
-  save(id);
+  save();
 }
 
 $("courses").addEventListener("click", e => {
@@ -342,106 +359,127 @@ $("hist").addEventListener("click", e => {
   current = new Date(y, m - 1, d); render();
 });
 
+// ---------- timer ----------
+const two = n => String(n).padStart(2, "0");
+function clock(ms) {
+  const t = Math.floor(ms / 1000);
+  return `${Math.floor(t / 3600)}:${two(Math.floor(t / 60) % 60)}:${two(t % 60)}`;
+}
+function elapsedMs() {
+  if (!timer) return 0;
+  return timer.elapsed + (timer.runningSince ? Date.now() - timer.runningSince : 0);
+}
+function breakMs() {
+  if (!timer) return 0;
+  return timer.breakMs + (timer.pausedSince ? Date.now() - timer.pausedSince : 0);
+}
+
+function startTimer(id) {
+  if (timer) stopTimer(true);           // switching course saves the current session
+  timer = { course: id, week: key(thisMondayNow()), elapsed: 0, runningSince: Date.now(), pausedSince: null, breakMs: 0 };
+  save(); renderTimer(); render();
+}
+function thisMondayNow() { return mondayOf(new Date()); }
+function pauseResume() {
+  if (!timer) return;
+  const now = Date.now();
+  if (timer.runningSince) {
+    timer.elapsed += now - timer.runningSince; timer.runningSince = null; timer.pausedSince = now;
+  } else {
+    timer.breakMs += now - (timer.pausedSince || now); timer.pausedSince = null; timer.runningSince = now;
+  }
+  save(); renderTimer(); render();
+}
+function stopTimer(silent) {
+  if (!timer) return;
+  const hours = elapsedMs() / 3600000, t = timer;
+  timer = null;
+  if (hours >= 1 / 60) setHours(t.course, hoursFor(t.week, t.course) + hours, t.week);
+  else { save(); render(); }
+  renderTimer();
+  if (!silent) {
+    const c = COURSES.find(x => x.id === t.course);
+    $("sync").textContent = hours >= 1 / 60 ? `Added ${hm(hours)} to ${c.name}` : "Session under a minute, nothing added";
+  }
+}
+function discardTimer() {
+  if (!timer || !confirm("Discard this session? The time won't be added.")) return;
+  timer = null; save(); renderTimer(); render();
+}
+
+let tick = null;
+function renderTimer() {
+  document.body.classList.toggle("timing", !!timer);
+  $("timer").hidden = !timer;
+  clearInterval(tick);
+  if (!timer) return;
+  const c = COURSES.find(x => x.id === timer.course);
+  $("timer").style.setProperty("--c", c.color);
+  $("tCourse").textContent = c.name;
+  $("tPause").textContent = timer.runningSince ? "Pause" : "Resume";
+  const paint = () => {
+    $("tTime").textContent = clock(elapsedMs());
+    const b = breakMs();
+    $("tState").textContent = timer.runningSince
+      ? (b >= 1000 ? `Studying, breaks so far ${clock(b)}` : "Studying")
+      : `On break ${clock(Date.now() - timer.pausedSince)}`;
+    $("tState").classList.toggle("paused", !timer.runningSince);
+    document.title = `${clock(elapsedMs())} ${c.name}`;
+  };
+  paint();
+  tick = setInterval(() => { if (timer) paint(); }, 1000);
+}
+window.addEventListener("beforeunload", () => { if (!timer) document.title = "Study hours"; });
+
+$("courses").addEventListener("click", e => {
+  const b = e.target.closest("[data-play]"); if (!b || b.disabled) return;
+  startTimer(b.closest(".course").dataset.id);
+});
+$("tPause").onclick = pauseResume;
+$("tStop").onclick = () => { stopTimer(false); document.title = "Study hours"; };
+$("tDiscard").onclick = () => { discardTimer(); if (!timer) document.title = "Study hours"; };
+
 // ---------- saving ----------
-let sb = null, session = null;
-const pending = new Map();  // "week|course" -> hours
-let flushTimer = null;
-
-function saveLocal() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ weeks })); } catch (e) {}
-}
-
-function save(id) {
-  saveLocal();
-  if (!sb || !session || !id) return;
-  const wk = key(current);
-  pending.set(wk + "|" + id, hoursFor(wk, id));
-  clearTimeout(flushTimer);
+let docRef = null, saveTimer = null;
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ weeks, timer })); } catch (e) {}
+  if (!docRef) return;
+  clearTimeout(saveTimer);
   $("sync").textContent = "Saving…";
-  flushTimer = setTimeout(flush, 600);
+  saveTimer = setTimeout(async () => {
+    try { await docRef.set({ weeks, timer, updatedAt: Date.now() }); $("sync").textContent = "Saved to your account"; }
+    catch (err) { $("sync").textContent = "Couldn't save to your account, kept on this device"; }
+  }, 600);
 }
 
-async function flush() {
-  if (!pending.size || !session) return;
-  const rows = [...pending].map(([k, h]) => {
-    const [week_start, course] = k.split("|");
-    return { user_id: session.user.id, week_start, course, hours: h };
-  });
-  pending.clear();
-  const { error } = await sb.from("study_logs").upsert(rows, { onConflict: "user_id,week_start,course" });
-  $("sync").textContent = error ? "Couldn't sync, saved on this device. Try again later." : "Synced";
-  if (error) rows.forEach(r => pending.set(r.week_start + "|" + r.course, r.hours));
-}
-
-async function pullAndMerge() {
-  $("sync").textContent = "Loading your hours…";
-  const { data, error } = await sb.from("study_logs").select("week_start, course, hours");
-  if (error) { $("sync").textContent = "Couldn't load from your account, showing this device"; return; }
-  const remote = {};
-  data.forEach(r => {
-    if (!+r.hours) return;
-    (remote[r.week_start] ||= {})[r.course] = +r.hours;
-  });
-  // anything only on this device gets uploaded
-  const toUpload = [];
-  for (const [wk, courses] of Object.entries(weeks))
-    for (const [c, h] of Object.entries(courses))
-      if (!(remote[wk] && c in remote[wk])) { (remote[wk] ||= {})[c] = h; toUpload.push({ user_id: session.user.id, week_start: wk, course: c, hours: h }); }
-  weeks = remote;
-  saveLocal(); render();
-  if (toUpload.length) {
-    const { error: e2 } = await sb.from("study_logs").upsert(toUpload, { onConflict: "user_id,week_start,course" });
-    $("sync").textContent = e2 ? "Some hours didn't sync yet" : "Synced";
-  } else $("sync").textContent = "Synced";
-}
-
-function showAuth() {
-  $("account").hidden = false;
-  $("signedOut").hidden = !!session;
-  $("signedIn").hidden = !session;
-  if (session) $("who").textContent = session.user.email;
-  if (!session) $("sync").textContent = "Saved on this device";
-}
-
-function authMsg(text, err) { $("authMsg").textContent = text; $("authMsg").classList.toggle("err", !!err); }
-
-async function initSupabase() {
-  const configured = !SUPABASE_URL.startsWith("YOUR_") && !SUPABASE_ANON_KEY.startsWith("YOUR_");
-  if (!configured || !window.supabase) return;
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const { data } = await sb.auth.getSession();
-  session = data.session;
-  showAuth();
-  if (session) await pullAndMerge();
-  sb.auth.onAuthStateChange((evt, s2) => {
-    const was = session && session.user.id;
-    session = s2;
-    showAuth();
-    if (session && session.user.id !== was) pullAndMerge();
-  });
-
-  $("authForm").addEventListener("submit", async e => {
-    e.preventDefault();
-    authMsg("Signing in…");
-    const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
-    authMsg(error ? error.message : "", !!error);
-  });
-  $("signUpBtn").addEventListener("click", async () => {
-    if (!$("authForm").reportValidity()) return;
-    authMsg("Creating account…");
-    const { data: d, error } = await sb.auth.signUp({ email: $("email").value.trim(), password: $("password").value });
-    if (error) return authMsg(error.message, true);
-    authMsg(d.session ? "" : "Account created. Check your email to confirm, then sign in.");
-  });
-  $("signOutBtn").addEventListener("click", async () => {
-    await flush();
-    await sb.auth.signOut();
-  });
+async function connect() {
+  if (!window.claude || !window.claude.use) return;
+  try {
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return;
+    const uid = await user.id();
+    if (!uid) return;
+    docRef = db.doc(`data/users/${uid}/log`);
+    const snap = await docRef.get();
+    if (snap.exists && snap.data().weeks) {
+      // merge: account data wins, local-only weeks are kept
+      weeks = { ...weeks, ...snap.data().weeks };
+      if (!timer && snap.data().timer) timer = snap.data().timer;
+      try { localStorage.setItem(LS_KEY, JSON.stringify({ weeks, timer })); } catch (e) {}
+      render(); renderTimer();
+      $("sync").textContent = "Saved to your account";
+    } else if (Object.keys(weeks).length || timer) {
+      save();
+    } else {
+      $("sync").textContent = "Saved to your account";
+    }
+  } catch (e) { docRef = null; }
 }
 
 buildCourses();
 render();
-initSupabase();
+renderTimer();
+connect();
 </script>
 </body>
 </html>
