@@ -1,1 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Study hours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E9EDF2;
+  --surface: #FFFFFF;
+  --ink: #18202C;
+  --muted: #5B6676;
+  --line: #D3DAE3;
+  --track: #EEF1F5;
+  --crypto: #E5322D;
+  --hci: #F5B400;
+  --arch: #16A34A;
+  --mm: #6B2FA0;
+  --os: #F2E205;
+  --fyp: #2563EB;
+  --done: #16A34A;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151C; --surface: #1A2029; --ink: #EEF2F7; --muted: #9AA5B4;
+    --line: #2B3440; --track: #232A35; --os: #E6D800; --mm: #9A5CD6; --fyp: #4F86F7;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151C; --surface: #1A2029; --ink: #EEF2F7; --muted: #9AA5B4;
+  --line: #2B3440; --track: #232A35; --os: #E6D800; --mm: #9A5CD6; --fyp: #4F86F7;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 16px; line-height: 1.45;
+}
+main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--fyp); outline-offset: 2px; }
 
+/* Week header */
+.weekbar { display: flex; align-items: center; gap: 8px; }
+.nav {
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line);
+  background: var(--surface); font-size: 20px; display: grid; place-items: center; flex: none;
+}
+.weektitle { flex: 1; text-align: center; }
+.weektitle h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.weektitle p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+.today { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--fyp); font-weight: 600; padding: 6px 10px; }
+.today[hidden] { display: none; }
+
+/* Total */
+.total { margin: 22px 0 18px; }
+.total-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.total-num { font-size: 3.25rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.total-num small { font-size: 1.1rem; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+.total-note { color: var(--muted); font-size: 0.95rem; text-align: right; }
+.stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--track); margin-top: 12px; }
+.stack span { display: block; height: 100%; transition: width .3s ease; }
+
+/* Course rows: each looks like a timetable block */
+.courses { display: grid; gap: 10px; }
+.course {
+  background: var(--surface); border-radius: 10px; padding: 14px 14px 14px 18px;
+  position: relative; overflow: hidden; border: 1px solid var(--line);
+}
+.course::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--c); }
+.c-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.c-name { font-weight: 600; font-size: 1.05rem; }
+.c-code { color: var(--muted); font-size: 0.85rem; margin-left: 6px; font-weight: 400; }
+.c-hours { font-weight: 800; font-size: 1.15rem; white-space: nowrap; }
+.c-hours small { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
+.bar { height: 10px; border-radius: 5px; background: var(--track); margin: 10px 0 12px; overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--c); border-radius: 5px; transition: width .3s ease; }
+.c-bottom { display: flex; align-items: center; gap: 8px; }
+.status { flex: 1; color: var(--muted); font-size: 0.9rem; }
+.status.done { color: var(--done); font-weight: 600; }
+.step {
+  min-width: 48px; height: 40px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--bg); font-weight: 600; padding: 0 10px;
+}
+.step.add { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.step:disabled { opacity: .4; cursor: default; }
+.c-input {
+  width: 64px; height: 40px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); text-align: center; font: inherit; font-weight: 600;
+}
+
+/* History */
+.history { margin-top: 30px; }
+.history h2 { font-size: 1.1rem; margin: 0 0 10px; font-weight: 600; }
+.hist-wrap { overflow-x: auto; }
+.hist { display: flex; gap: 4px; align-items: flex-end; min-height: 140px; padding-bottom: 4px; }
+.hcol {
+  flex: 1; min-width: 38px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border: 0; background: none; padding: 4px 2px; border-radius: 8px;
+}
+.hcol.sel { background: var(--surface); outline: 1px solid var(--line); }
+.hbar { width: 100%; max-width: 34px; height: 100px; background: var(--track); border-radius: 6px; display: flex; flex-direction: column-reverse; overflow: hidden; position: relative; }
+.hbar span { display: block; width: 100%; }
+.hbar .goal { position: absolute; left: 0; right: 0; height: 2px; background: var(--ink); opacity: .35; }
+.hlabel { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+.hval { font-size: 0.8rem; font-weight: 600; }
+
+.account { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.account h2 { font-size: 1.1rem; margin: 0 0 4px; font-weight: 600; }
+.account p { margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }
+.account form { display: grid; gap: 8px; }
+.account input { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; padding: 0 12px; }
+.account .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-weight: 600; padding: 0 16px; }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); flex: 1; }
+.account .msg { min-height: 1.2em; margin: 8px 0 0; font-size: 0.9rem; }
+.account .msg.err { color: var(--crypto); }
+.signed { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.signed p { margin: 0; }
+.account[hidden] { display: none; }
+.sync { margin-top: 24px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+
+@media (max-width: 420px) {
+  .total-num { font-size: 2.6rem; }
+  .c-code { display: block; margin-left: 0; }
+  .step { min-width: 42px; padding: 0 6px; }
+  .c-input { width: 54px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar span, .stack span { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="weekbar">
+    <button class="nav" id="prev" aria-label="Previous week">‹</button>
+    <div class="weektitle">
+      <h1 id="weekTitle">This week</h1>
+      <p id="weekRange"></p>
+    </div>
+    <button class="nav" id="next" aria-label="Next week">›</button>
+  </div>
+  <button class="today" id="goToday" hidden>Back to this week</button>
+
+  <section class="total" aria-live="polite">
+    <div class="total-row">
+      <div class="total-num" id="totalNum">0<small> / 33 h</small></div>
+      <div class="total-note" id="totalNote"></div>
+    </div>
+    <div class="stack" id="stack" aria-hidden="true"></div>
+  </section>
+
+  <section class="courses" id="courses"></section>
+
+  <section class="history">
+    <h2>Last 8 weeks</h2>
+    <div class="hist-wrap"><div class="hist" id="hist"></div></div>
+  </section>
+
+  <section class="account" id="account" hidden>
+    <div id="signedOut">
+      <h2>Sync across devices</h2>
+      <p>Sign in to keep your hours on your phone and laptop.</p>
+      <form id="authForm">
+        <input type="email" id="email" placeholder="Email" autocomplete="email" required>
+        <input type="password" id="password" placeholder="Password (6+ characters)" autocomplete="current-password" minlength="6" required>
+        <div class="row">
+          <button class="btn primary" type="submit" id="signInBtn">Sign in</button>
+          <button class="btn" type="button" id="signUpBtn">Create account</button>
+        </div>
+      </form>
+      <p class="msg" id="authMsg" role="status"></p>
+    </div>
+    <div class="signed" id="signedIn" hidden>
+      <p>Syncing as <strong id="who"></strong></p>
+      <button class="btn" id="signOutBtn">Sign out</button>
+    </div>
+  </section>
+
+  <p class="sync" id="sync">Saved on this device</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+// ===== Fill these in from Supabase: Project Settings > API =====
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+// ===============================================================
+
+const COURSES = [
+  { id: "os2",    name: "Operating Systems II",      code: "CS4421", target: 6, color: "var(--os)" },
+  { id: "arch",   name: "Computer Architecture II",  code: "CS4420", target: 6, color: "var(--arch)" },
+  { id: "crypto", name: "Cryptography",              code: "CS4542", target: 6, color: "var(--crypto)" },
+  { id: "mm",     name: "Multimedia Systems",        code: "CS5430", target: 4, color: "var(--mm)" },
+  { id: "hci",    name: "Human Computer Interaction",code: "CS4431", target: 4, color: "var(--hci)" },
+  { id: "fyp",    name: "Final Year Project",        code: "Project",target: 7, color: "var(--fyp)" },
+];
+const GOAL = COURSES.reduce((s, c) => s + c.target, 0);
+const LS_KEY = "study-hours-v1";
+
+// ---------- dates ----------
+function mondayOf(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = (x.getDay() + 6) % 7; // Mon=0
+  x.setDate(x.getDate() - day);
+  return x;
+}
+function key(d) {
+  const m = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${dd}`;
+}
+function addWeeks(d, n) { const x = new Date(d); x.setDate(x.getDate() + n * 7); return x; }
+const fmt = (d, opts) => d.toLocaleDateString("en-GB", opts);
+function isoWeek(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dn = (t.getUTCDay() + 6) % 7; t.setUTCDate(t.getUTCDate() - dn + 3);
+  const first = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((t - first) / 864e5 - 3 + ((first.getUTCDay() + 6) % 7)) / 7);
+}
+
+// ---------- state ----------
+let weeks = {};          // { "2026-10-05": { os2: 2, ... } }
+const thisMonday = mondayOf(new Date());
+let current = thisMonday;
+
+try { const raw = localStorage.getItem(LS_KEY); if (raw) weeks = JSON.parse(raw).weeks || {}; } catch (e) {}
+
+function hoursFor(wk, id) { return (weeks[wk] && +weeks[wk][id]) || 0; }
+function weekTotal(wk) { return COURSES.reduce((s, c) => s + hoursFor(wk, c.id), 0); }
+const nice = n => (Math.round(n * 10) / 10).toString();
+
+// ---------- render ----------
+const $ = id => document.getElementById(id);
+
+function buildCourses() {
+  $("courses").innerHTML = COURSES.map(c => `
+    <article class="course" style="--c:${c.color}" data-id="${c.id}">
+      <div class="c-top">
+        <div class="c-name">${c.name}<span class="c-code">${c.code}</span></div>
+        <div class="c-hours"><span data-h></span><small> / ${c.target} h</small></div>
+      </div>
+      <div class="bar"><span data-bar></span></div>
+      <div class="c-bottom">
+        <div class="status" data-status></div>
+        <button class="step" data-step="-0.5" aria-label="Remove half an hour from ${c.name}">−½</button>
+        <input class="c-input" type="number" inputmode="decimal" min="0" max="99" step="0.5" aria-label="Hours for ${c.name}" data-input>
+        <button class="step add" data-step="0.5" aria-label="Add half an hour to ${c.name}">+½</button>
+        <button class="step add" data-step="1" aria-label="Add one hour to ${c.name}">+1</button>
+      </div>
+    </article>`).join("");
+}
+
+function render() {
+  const wk = key(current);
+  const end = new Date(current); end.setDate(end.getDate() + 6);
+  const diff = Math.round((current - thisMonday) / (7 * 864e5));
+  $("weekTitle").textContent = diff === 0 ? "This week" : diff === -1 ? "Last week" : diff === 1 ? "Next week" : `Week ${isoWeek(current)}`;
+  $("weekRange").textContent = `${fmt(current, { weekday: "short", day: "numeric", month: "short" })} – ${fmt(end, { weekday: "short", day: "numeric", month: "short", year: "numeric" })}`;
+  $("goToday").hidden = diff === 0;
+
+  const total = weekTotal(wk);
+  $("totalNum").innerHTML = `${nice(total)}<small> / ${GOAL} h</small>`;
+  const left = GOAL - total;
+  $("totalNote").textContent = left > 0 ? `${nice(left)} h to go` : "Weekly goal reached";
+  $("stack").innerHTML = COURSES.map(c => {
+    const h = Math.min(hoursFor(wk, c.id), c.target);
+    return `<span style="width:${(h / GOAL) * 100}%;background:${c.color}"></span>`;
+  }).join("");
+
+  document.querySelectorAll(".course").forEach(el => {
+    const c = COURSES.find(x => x.id === el.dataset.id);
+    const h = hoursFor(wk, c.id);
+    el.querySelector("[data-h]").textContent = nice(h);
+    el.querySelector("[data-bar]").style.width = Math.min(100, (h / c.target) * 100) + "%";
+    const st = el.querySelector("[data-status]");
+    const rem = c.target - h;
+    st.textContent = rem > 0 ? `${nice(rem)} h left` : rem === 0 ? "Done" : `Done +${nice(-rem)} h`;
+    st.classList.toggle("done", rem <= 0);
+    const inp = el.querySelector("[data-input]");
+    if (document.activeElement !== inp) inp.value = h ? nice(h) : "";
+    inp.placeholder = "0";
+    el.querySelector('[data-step="-0.5"]').disabled = h <= 0;
+  });
+
+  renderHistory();
+}
+
+function renderHistory() {
+  const cols = [];
+  for (let i = 7; i >= 0; i--) {
+    const m = addWeeks(thisMonday, -i), wk = key(m), total = weekTotal(wk);
+    const maxH = Math.max(GOAL * 1.25, total);
+    const segs = COURSES.map(c => {
+      const h = hoursFor(wk, c.id);
+      return h ? `<span style="height:${(h / maxH) * 100}%;background:${c.color}"></span>` : "";
+    }).join("");
+    const goalPos = (GOAL / maxH) * 100;
+    cols.push(`<button class="hcol${wk === key(current) ? " sel" : ""}" data-week="${wk}" aria-label="Week of ${fmt(m, { day: "numeric", month: "long" })}, ${nice(total)} hours">
+      <span class="hval">${nice(total)}</span>
+      <span class="hbar">${segs}<span class="goal" style="bottom:${goalPos}%"></span></span>
+      <span class="hlabel">${fmt(m, { day: "numeric", month: "short" })}</span>
+    </button>`);
+  }
+  $("hist").innerHTML = cols.join("");
+}
+
+// ---------- editing ----------
+function setHours(id, value) {
+  const wk = key(current);
+  const v = Math.max(0, Math.min(99, Math.round((+value || 0) * 2) / 2));
+  weeks[wk] = { ...(weeks[wk] || {}), [id]: v };
+  if (!v) delete weeks[wk][id];
+  if (weeks[wk] && !Object.keys(weeks[wk]).length) delete weeks[wk];
+  render();
+  save(id);
+}
+
+$("courses").addEventListener("click", e => {
+  const b = e.target.closest("[data-step]"); if (!b) return;
+  const id = b.closest(".course").dataset.id;
+  setHours(id, hoursFor(key(current), id) + parseFloat(b.dataset.step));
+});
+$("courses").addEventListener("change", e => {
+  if (!e.target.matches("[data-input]")) return;
+  setHours(e.target.closest(".course").dataset.id, e.target.value);
+});
+$("courses").addEventListener("keydown", e => {
+  if (e.target.matches("[data-input]") && e.key === "Enter") e.target.blur();
+});
+$("prev").onclick = () => { current = addWeeks(current, -1); render(); };
+$("next").onclick = () => { current = addWeeks(current, 1); render(); };
+$("goToday").onclick = () => { current = thisMonday; render(); };
+$("hist").addEventListener("click", e => {
+  const b = e.target.closest("[data-week]"); if (!b) return;
+  const [y, m, d] = b.dataset.week.split("-").map(Number);
+  current = new Date(y, m - 1, d); render();
+});
+
+// ---------- saving ----------
+let sb = null, session = null;
+const pending = new Map();  // "week|course" -> hours
+let flushTimer = null;
+
+function saveLocal() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ weeks })); } catch (e) {}
+}
+
+function save(id) {
+  saveLocal();
+  if (!sb || !session || !id) return;
+  const wk = key(current);
+  pending.set(wk + "|" + id, hoursFor(wk, id));
+  clearTimeout(flushTimer);
+  $("sync").textContent = "Saving…";
+  flushTimer = setTimeout(flush, 600);
+}
+
+async function flush() {
+  if (!pending.size || !session) return;
+  const rows = [...pending].map(([k, h]) => {
+    const [week_start, course] = k.split("|");
+    return { user_id: session.user.id, week_start, course, hours: h };
+  });
+  pending.clear();
+  const { error } = await sb.from("study_logs").upsert(rows, { onConflict: "user_id,week_start,course" });
+  $("sync").textContent = error ? "Couldn't sync, saved on this device. Try again later." : "Synced";
+  if (error) rows.forEach(r => pending.set(r.week_start + "|" + r.course, r.hours));
+}
+
+async function pullAndMerge() {
+  $("sync").textContent = "Loading your hours…";
+  const { data, error } = await sb.from("study_logs").select("week_start, course, hours");
+  if (error) { $("sync").textContent = "Couldn't load from your account, showing this device"; return; }
+  const remote = {};
+  data.forEach(r => {
+    if (!+r.hours) return;
+    (remote[r.week_start] ||= {})[r.course] = +r.hours;
+  });
+  // anything only on this device gets uploaded
+  const toUpload = [];
+  for (const [wk, courses] of Object.entries(weeks))
+    for (const [c, h] of Object.entries(courses))
+      if (!(remote[wk] && c in remote[wk])) { (remote[wk] ||= {})[c] = h; toUpload.push({ user_id: session.user.id, week_start: wk, course: c, hours: h }); }
+  weeks = remote;
+  saveLocal(); render();
+  if (toUpload.length) {
+    const { error: e2 } = await sb.from("study_logs").upsert(toUpload, { onConflict: "user_id,week_start,course" });
+    $("sync").textContent = e2 ? "Some hours didn't sync yet" : "Synced";
+  } else $("sync").textContent = "Synced";
+}
+
+function showAuth() {
+  $("account").hidden = false;
+  $("signedOut").hidden = !!session;
+  $("signedIn").hidden = !session;
+  if (session) $("who").textContent = session.user.email;
+  if (!session) $("sync").textContent = "Saved on this device";
+}
+
+function authMsg(text, err) { $("authMsg").textContent = text; $("authMsg").classList.toggle("err", !!err); }
+
+async function initSupabase() {
+  const configured = !SUPABASE_URL.startsWith("YOUR_") && !SUPABASE_ANON_KEY.startsWith("YOUR_");
+  if (!configured || !window.supabase) return;
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  showAuth();
+  if (session) await pullAndMerge();
+  sb.auth.onAuthStateChange((evt, s2) => {
+    const was = session && session.user.id;
+    session = s2;
+    showAuth();
+    if (session && session.user.id !== was) pullAndMerge();
+  });
+
+  $("authForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    authMsg("Signing in…");
+    const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+    authMsg(error ? error.message : "", !!error);
+  });
+  $("signUpBtn").addEventListener("click", async () => {
+    if (!$("authForm").reportValidity()) return;
+    authMsg("Creating account…");
+    const { data: d, error } = await sb.auth.signUp({ email: $("email").value.trim(), password: $("password").value });
+    if (error) return authMsg(error.message, true);
+    authMsg(d.session ? "" : "Account created. Check your email to confirm, then sign in.");
+  });
+  $("signOutBtn").addEventListener("click", async () => {
+    await flush();
+    await sb.auth.signOut();
+  });
+}
+
+buildCourses();
+render();
+initSupabase();
+</script>
+</body>
+</html>
